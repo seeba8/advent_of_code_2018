@@ -30,9 +30,7 @@ pub fn input_generator(input: &str) -> Vec<Claim> {
     claims
 }
 
-#[aoc(day3, part1)]
-pub fn solve_part1(input: &[Claim]) -> usize {
-    let mut cloth = [0u8; 1_000_000];
+fn fill_cloth(input: &[Claim], cloth: &mut [u8; 1_000_000]) {
     for claim in input.iter() {
         for w in 0usize..claim.w {
             for h in 0usize..claim.h {
@@ -40,9 +38,40 @@ pub fn solve_part1(input: &[Claim]) -> usize {
             }
         }
     }
+
+}
+
+#[aoc(day3, part1)]
+pub fn solve_part1(input: &[Claim]) -> usize {
+    let mut cloth: [u8; 1_000_000] = [0u8; 1_000_000];
+    fill_cloth(input, &mut cloth);
     cloth.iter().map(|&c| if c > 1 { 1 } else { 0 }).sum()
+}
 
 
+#[aoc(day3, part2)]
+pub fn solve_part2(input: &[Claim]) -> usize {
+    let mut cloth: [u8; 1_000_000] = [0u8; 1_000_000];
+    fill_cloth(input, &mut cloth);
+    for claim in input.iter() {
+        let mut overlaps = false;
+        for w in 0usize..claim.w {
+            for h in 0usize..claim.h {
+                if cloth[(claim.x+w)*1000 + claim.y+h] > 1 {
+                    overlaps = true;
+                    break;
+                }
+            }
+            if overlaps {
+                break
+            }
+        }
+        if !overlaps {
+            return claim.id
+        }
+    }
+
+    unreachable!()
 }
 
 #[cfg(test)]

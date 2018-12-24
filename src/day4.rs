@@ -48,22 +48,18 @@ pub fn input_generator(input: &str) -> BTreeMap<DateTime<Utc>, LogEntry> {
     logfile
 }
 
-#[aoc(day4, part1)]
-pub fn solve_part1(input: &BTreeMap<DateTime<Utc>, LogEntry>) -> usize {
-    let mut sleepminutes: HashMap<usize, usize> = HashMap::new();
+fn calculate_slept_on_minute(input: &BTreeMap<DateTime<Utc>, LogEntry>) -> HashMap<usize, [u8;60]> {
     let mut startsleep: usize = 0;
     let mut slept_on_minute: HashMap<usize, [u8;60]> = HashMap::new();
     for (&time, &entry) in input {
         match entry.status {
             Status::Begin => {
-                sleepminutes.entry(entry.guard.unwrap()).or_insert(0);
                 slept_on_minute.entry(entry.guard.unwrap()).or_insert([0u8;60]);
             },
             Status::Sleep => {
                 startsleep = time.minute() as usize;
             },
             Status::WakeUp => {
-                sleepminutes.entry(entry.guard.unwrap()).and_modify(|e| {*e += time.minute() as usize - startsleep;});
                 for i in startsleep..time.minute() as usize {
                     slept_on_minute.entry(entry.guard.unwrap()).and_modify(|e| {e[i] += 1u8});
                 }
@@ -71,12 +67,20 @@ pub fn solve_part1(input: &BTreeMap<DateTime<Utc>, LogEntry>) -> usize {
             }
         };
     }
+    slept_on_minute
+}
+
+#[aoc(day4, part1)]
+pub fn solve_part1(input: &BTreeMap<DateTime<Utc>, LogEntry>) -> usize {
+    let slept_on_minute = calculate_slept_on_minute(input);
+    //let sum_a: usize = slept_on_minute.get(&1789).unwrap().iter().map(|&v| v as usize).sum();
     let mut longest_sleeper: usize = 0;
     let mut longest_sleep: usize = 0;
-    for (&id, &minutes) in sleepminutes.iter() {
-        if minutes > longest_sleep{
+    for (&id, &minutes) in slept_on_minute.iter() {
+        let sum_minutes: usize = minutes.iter().map(|&v| v as usize).sum();
+        if sum_minutes > longest_sleep{
             longest_sleeper = id.clone();
-            longest_sleep = minutes;
+            longest_sleep = sum_minutes;
         }
     };
     let mut longest_minute = 0usize;
@@ -87,6 +91,22 @@ pub fn solve_part1(input: &BTreeMap<DateTime<Utc>, LogEntry>) -> usize {
         }
     }
     longest_minute * longest_sleeper
+}
+
+#[aoc(day4, part2)]
+pub fn solve_part2(input: &BTreeMap<DateTime<Utc>, LogEntry>) -> usize {
+    let mut best_guard: usize = 0;
+    let mut minute: usize = 0;
+    let slept_on_minute = calculate_slept_on_minute(input);
+    for (&guard, &minutes) in slept_on_minute.iter() {
+        for i  in 0..60 {
+            if minutes[i] as usize > minute {
+                best_guard = guard;
+                minute = minutes[i] as usize;
+            }
+        }
+    }
+    best_guard * minute
 }
 
 

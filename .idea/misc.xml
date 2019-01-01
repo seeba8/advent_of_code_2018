@@ -3,9 +3,7 @@
   <component name="CargoProjects">
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
-  <component name="ProjectRootManager">
-    <output url="file://$PROJECT_DIR$/out" />
-  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.6 (linkage)" project-jdk-type="Python SDK" />
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
   </component>

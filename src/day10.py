@@ -7,6 +7,7 @@ class Sky:
     def __init__(self):
         self.stars: List[Star] = []
         self.stepsize = 1
+        self.time = 0
 
     def positions(self):
         while True:
@@ -15,6 +16,7 @@ class Sky:
                 x.append(star.position[0])
                 y.append(star.position[1])
                 star.move(self.stepsize)
+            self.time += self.stepsize
             yield x, y
 
     def animate(self):
@@ -23,6 +25,7 @@ class Sky:
         for x,y in self.positions():
 
             if min(y) >= 160 and max(y) <= 197: #min(x) > -100:
+                print(self.time-self.stepsize)
                 pause = 100
                 self.stepsize = 1
             else:
@@ -97,6 +100,7 @@ def part1():
         sky = parse_input(input)
         for star in sky.stars:
             star.move(10000)
+        sky.time = 10000
         sky.animate()
 
 # test_part1()

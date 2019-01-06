@@ -56,6 +56,7 @@ def part1():
     print(sum(x for x in rootnode.iter_metadata()))
     return rootnode
 
+
 def part2(rootnode):
     print(rootnode.get_value())
 

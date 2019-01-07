@@ -167,8 +167,9 @@ class Map:
             map += "\n"
         return map
 
-    def tick(self):
+    def tick(self, stop_at_crash=True):
         self.t += 1
+        cart_positions = []
         for y in range(self.height):
             for x in range(self.width):
                 target = (0,0)
@@ -177,32 +178,27 @@ class Map:
                     continue
                 if tile.cart.direction == Direction.UP:
                     target = (x, y-1)
-                    self.get_tile(*target).cart = tile.cart
-                    tile.cart.set_direction(self.get_tile(*target))
-                    tile.cart.last_move = self.t
-                    tile.cart = None
                 elif tile.cart.direction == Direction.RIGHT:
                     target = (x+1, y)
-                    self.get_tile(*target).cart = tile.cart
-                    tile.cart.set_direction(self.get_tile(*target))
-                    tile.cart.last_move = self.t
-                    tile.cart = None
                 elif tile.cart.direction == Direction.DOWN:
                     target = (x, y+1)
-                    self.get_tile(*target).cart = tile.cart
-                    tile.cart.set_direction(self.get_tile(*target))
-                    tile.cart.last_move = self.t
-                    tile.cart = None
                 elif tile.cart.direction == Direction.LEFT:
                     target = (x-1, y)
-                    self.get_tile(*target).cart = tile.cart
-                    tile.cart.set_direction(self.get_tile(*target))
-                    tile.cart.last_move = self.t
-                    tile.cart = None
+                self.get_tile(*target).cart = tile.cart
+                tile.cart.set_direction(self.get_tile(*target))
+                tile.cart.last_move = self.t
+                tile.cart = None
+                cart_positions.append(target)
                 if isinstance(self.get_tile(*target).cart, Crash):
                     print(target)
-                    print(self)
-                    sys.exit(-1)
+                    if stop_at_crash:
+                        print(self)
+                        sys.exit(-1)
+                    cart_positions.remove(target)
+                    self.get_tile(*target).cart = None
+        if len(cart_positions) == 1:
+            print(cart_positions)
+            sys.exit(0)
 
     @staticmethod
     def from_file(path="../input/2018/day13.txt"):
@@ -224,12 +220,14 @@ class Map:
                     elif tile == "+":
                         m.set_tile(x, y, Intersection())
                     elif tile == "/":
-                        if x != 0 and isinstance(m.get_tile(x-1, y), LeftRight):  # left-up curve
+                        if x != 0 and (isinstance(m.get_tile(x-1, y), LeftRight)
+                                       or isinstance(m.get_tile(x-1, y), Intersection)):  # left-up curve
                             m.set_tile(x, y, Curve({Direction.LEFT, Direction.UP}))
                         else:
                             m.set_tile(x, y, Curve({Direction.RIGHT, Direction.DOWN}))
                     elif tile == "\\":
-                        if x != 0 and isinstance(m.get_tile(x-1, y), LeftRight):  # up-right curve
+                        if x != 0 and (isinstance(m.get_tile(x-1, y), LeftRight)
+                                       or isinstance(m.get_tile(x-1, y), Intersection)):  # up-right curve
                             m.set_tile(x, y, Curve({Direction.DOWN, Direction.LEFT}))
                         else:
                             m.set_tile(x, y, Curve({Direction.UP, Direction.RIGHT}))
@@ -260,6 +258,6 @@ class Map:
 m = Map.from_file()
 
 while True:
-    m.tick()
+    m.tick(stop_at_crash=False)
 
 

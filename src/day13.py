@@ -11,21 +11,23 @@ class Direction(Enum):
 
 
 class Cart:
-    def __init__(self, current_direction: "Direction"):
+    def __init__(self, current_direction: "Direction", position: Tuple[int, int]):
         self.direction: "Direction" = current_direction
         self.last_move = -1
         self.next_turn = 0  # 0: left. 1: straight. 2: right
+        self.position = position
 
     def __repr__(self):
+        direction = ""
         if self.direction == Direction.DOWN:
-            return "v"
+            direction = "v"
         if self.direction == Direction.UP:
-            return "^"
+            direction = "^"
         if self.direction == Direction.LEFT:
-            return "<"
+            direction = "<"
         if self.direction == Direction.RIGHT:
-            return ">"
-        raise Exception("Shouldn't happen")
+            direction = ">"
+        return direction + str(self.position)
 
     def set_direction(self, tile: "Tile"):
         if isinstance(tile, UpDown) or isinstance(tile, LeftRight):
@@ -81,8 +83,8 @@ class Tile:
 
     @cart.setter
     def cart(self, c: Cart):
-        if self.cart is not None and c is not None:
-            self.__cart = Crash(c.direction)
+        if self.__cart is not None and c is not None:
+            self.__cart = Crash(c.direction, self.__cart.position)
         else:
             self.__cart = c
 
@@ -167,37 +169,55 @@ class Map:
             map += "\n"
         return map
 
+    def sort_carts(self):
+        self.carts.sort(key=lambda x: x.position[1] * self.height + x.position[0])
+
+    def remove_carts(self, position):
+        self.carts = [cart for cart in self.carts if cart.position != position]
+
     def tick(self, stop_at_crash=True):
         self.t += 1
-        cart_positions = []
-        for y in range(self.height):
-            for x in range(self.width):
-                target = (0,0)
-                tile = self.get_tile(x, y)
-                if tile.cart is None or tile.cart.last_move == self.t:
-                    continue
-                if tile.cart.direction == Direction.UP:
-                    target = (x, y-1)
-                elif tile.cart.direction == Direction.RIGHT:
-                    target = (x+1, y)
-                elif tile.cart.direction == Direction.DOWN:
-                    target = (x, y+1)
-                elif tile.cart.direction == Direction.LEFT:
-                    target = (x-1, y)
-                self.get_tile(*target).cart = tile.cart
-                tile.cart.set_direction(self.get_tile(*target))
-                tile.cart.last_move = self.t
-                tile.cart = None
-                cart_positions.append(target)
-                if isinstance(self.get_tile(*target).cart, Crash):
+        self.sort_carts()
+        i = 0
+        while i < len(self.carts):
+            cart = self.carts[i]
+            if i > 0 and self.carts[i-1].last_move < self.t:
+                cart = self.carts[i-1]
+            if cart.last_move == self.t:
+                i += 1
+                continue
+            if isinstance(cart, Crash):
+                raise Exception("Shouldn't happen")
+                # self.carts.remove(cart)
+            target = (0, 0)
+            x, y = cart.position
+            tile = self.get_tile(x, y)
+            if cart.direction == Direction.UP:
+                target = (x, y-1)
+            elif cart.direction == Direction.RIGHT:
+                target = (x+1, y)
+            elif cart.direction == Direction.DOWN:
+                target = (x, y+1)
+            elif cart.direction == Direction.LEFT:
+                target = (x-1, y)
+            target_tile = self.get_tile(*target)
+            target_tile.cart = cart
+            cart.position = target
+            cart.set_direction(target_tile)
+            cart.last_move = self.t
+            tile.cart = None
+            if isinstance(target_tile.cart, Crash):
+                print(target)
+                if stop_at_crash:
+                    print(self)
                     print(target)
-                    if stop_at_crash:
-                        print(self)
-                        sys.exit(-1)
-                    cart_positions.remove(target)
-                    self.get_tile(*target).cart = None
-        if len(cart_positions) == 1:
-            print(cart_positions)
+                    self.remove_carts(target)
+                    print(list(c.position for c in self.carts))
+                    sys.exit(-1)
+                self.remove_carts(target)
+                target_tile.cart = None
+        if len(self.carts) == 1:
+            print("Highlander:", self.carts[0].position)
             sys.exit(0)
 
     @staticmethod
@@ -232,24 +252,23 @@ class Map:
                         else:
                             m.set_tile(x, y, Curve({Direction.UP, Direction.RIGHT}))
                     elif tile == "^":
-                        c = Cart(Direction.UP)
+                        c = Cart(Direction.UP, (x, y))
                         m.carts.append(c)
                         m.set_tile(x, y, UpDown())
                         m.get_tile(x, y).cart = c
-
                     elif tile == "v":
                         m.set_tile(x, y, UpDown())
-                        c = Cart(Direction.DOWN)
+                        c = Cart(Direction.DOWN, (x, y))
                         m.carts.append(c)
                         m.get_tile(x, y).cart = c
                     elif tile == ">":
                         m.set_tile(x, y, LeftRight())
-                        c = Cart(Direction.RIGHT)
+                        c = Cart(Direction.RIGHT, (x, y))
                         m.carts.append(c)
                         m.get_tile(x, y).cart = c
                     elif tile == "<":
                         m.set_tile(x, y, LeftRight())
-                        c = Cart(Direction.LEFT)
+                        c = Cart(Direction.LEFT, (x, y))
                         m.carts.append(c)
                         m.get_tile(x, y).cart = c
             return m

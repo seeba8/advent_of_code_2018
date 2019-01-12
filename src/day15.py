@@ -11,6 +11,9 @@ class Cavern:
         self.height = h
         self.entities: List[Entity] = [Air(x, y) for x in range(w) for y in range(h)]
 
+    def reading_order(self, x, y):
+        return y * self.width + x
+
     def set_entity(self, entity: "Entity"):
         self.entities[entity.position[1] * self.width + entity.position[0]] = entity
 
@@ -115,14 +118,15 @@ class Character(Entity):
             if potential.__class__ == self.__class__:
                 continue
             for t in potential.iter_free_neighbours():
-                    # closest spot is last step in shortest path to the potential target
-                    if t not in distances:
-                        continue
-                    if distances[t][1] < prime_dist:
-                        prime = t
-                        prime_dist = distances[t][1]
-                    elif distances[t][1] == prime_dist and (t[1] < prime[1] or (t[1] == prime[1] and t[0] < prime[0])):
-                        prime = t
+                # closest spot is last step in shortest path to the potential target
+                if t not in distances:
+                    continue
+                if distances[t][1] < prime_dist:
+                    prime = t
+                    prime_dist = distances[t][1]
+                elif distances[t][1] == prime_dist and (game.cavern.reading_order(*t)
+                                                        < game.cavern.reading_order(*prime)):
+                    prime = t
         return prime
 
     def dijkstra(self):
@@ -166,9 +170,7 @@ class Character(Entity):
                 if alternative < distances[neighbour]:
                     set_as_closer()
                 elif alternative == distances[neighbour]:  # equal
-                    if u[1] < nodes[neighbour][0][1]:  # more up
-                        set_as_closer()
-                    elif u[1] == nodes[neighbour][0][1] and u[0] < nodes[neighbour][0][0]:  # more left
+                    if game.cavern.reading_order(*u) < game.cavern.reading_order(*nodes[neighbour][0]):
                         set_as_closer()
         return nodes
 
@@ -184,6 +186,7 @@ class Character(Entity):
             x = distances[x][0]
         # print(self.position, "Target", target, "Step:", x)
         self.position = x
+        # sys.exit(-1)
 
     def try_get_enemy_in_range(self) -> Optional[Entity]:
         offsets = [(0, -1), (-1, 0), (1, 0), (0, 1)]
@@ -194,6 +197,7 @@ class Character(Entity):
                 enemies.append(game.cavern.get_entity_at_offset(self, *offset))
         if len(enemies) == 0:
             return None
+        enemies.sort(key=lambda x: game.cavern.reading_order(*x.position))
         best_i, best_hp = 0, enemies[0].hit_points
         for i, enemy in enumerate(enemies):
             if enemy.hit_points < best_hp or (enemy.hit_points == best_hp and i < best_i):
@@ -252,11 +256,13 @@ class Game:
         if self.is_game_over:
             for c in game.cavern.iter_characters():
                 print(repr(c))
-            print("Game over! Round {}, Outcome {}".format(self.round_number,
-                                                           self.round_number *
-                                                           sum(c.hit_points for c in self.cavern.iter_characters())))
+            print("Game over! Round {}, Sum {},  Outcome {}".format(self.round_number,
+                                                                    sum(c.hit_points for c in
+                                                                        self.cavern.iter_characters()),
+                                                                    self.round_number *
+                                                                    sum(c.hit_points for c in
+                                                                        self.cavern.iter_characters())))
             # It's not 220320
-
 
     def check_is_game_over(self):
         has_goblin = has_elf = False
@@ -267,6 +273,7 @@ class Game:
                     has_elf = True
         if not (has_goblin and has_elf):
             self.is_game_over = True
+
 
 game: Game = None
 with open("../input/2018/day15.txt", "r") as file:

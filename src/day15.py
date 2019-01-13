@@ -5,7 +5,7 @@ import sys
 
 
 class Point:
-    def __init__(self, x:Union[Tuple[int, int], int], y: Optional[int]=None):
+    def __init__(self, x: Union[Tuple[int, int], int], y: Optional[int]=None):
         if isinstance(x, int):
             self.x = x
             self.y = y
@@ -137,19 +137,19 @@ class Character(Entity):
             if neighbour not in blocked_spots:
                 yield neighbour
 
-    def find_target(self, distances: Dict[Point, Tuple[Point, int]]):
+    def find_target(self, targets: Dict[Point, Point], distances: Dict[Point, int]):
         prime, prime_dist = None, inf
         for potential in game.cavern.iter_characters():
             if potential.__class__ == self.__class__:
                 continue
             for t in potential.iter_free_neighbours():
                 # closest spot is last step in shortest path to the potential target
-                if t not in distances:
+                if t not in targets:
                     continue
-                if distances[t][1] < prime_dist:
+                if distances[t] < prime_dist:
                     prime = t
-                    prime_dist = distances[t][1]
-                elif distances[t][1] == prime_dist and (t < prime):
+                    prime_dist = distances[t]
+                elif distances[t] == prime_dist and (t < prime):
                     prime = t
         return prime
 
@@ -172,11 +172,13 @@ class Character(Entity):
             not_visited.remove(neighbour)  # to update the distance, gets re-added a few lines below
             distances[neighbour] = alternative
             not_visited.add(neighbour)
-            nodes[neighbour] = (u, alternative)
+            predecessor[neighbour] = u
 
         blocked_spots = [e.position for e in game.cavern.iter_obstacles()]
-        nodes: Dict[Point, Tuple[Point, int]] = {}  # what is the predecessor of a point and what is the distance
-        distances: Dict[Point, int] = {}
+        # what is the predecessor of a point. E.g., predecessor[A] = B means
+        # that the predecessor of A is B
+        predecessor: Dict[Point, Point] = {}
+        distances: Dict[Point, int] = {}  # what is the distance from the character to the target
         not_visited: SortedListWithKey[Point] = SortedListWithKey(key=lambda x: -distances[x])
         initialise_queue()
         while len(not_visited) > 0:
@@ -188,26 +190,25 @@ class Character(Entity):
                 if alternative < distances[neighbour]:
                     set_as_closer()
                 elif alternative == distances[neighbour]:  # equal
-                    if u < nodes[neighbour][0]:
+                    if u < predecessor[neighbour]:
                         set_as_closer()
-        return nodes
+        return predecessor, distances
 
     def move(self):
-        distances = self.dijkstra()
-        target = self.find_target(distances)
+        predecessors, distances = self.dijkstra()
+        target = self.find_target(predecessors, distances)
         if target is None:
             # print(repr(self), "not moving")
             return
         # print(distances)
         x = target
-        while self.position != distances[x][0]:
-            x = distances[x][0]
+        while self.position != predecessors[x]:
+            x = predecessors[x]
         # print(self.position, "Target", target, "Step:", x)
         self.position = x
         # sys.exit(-1)
 
     def try_get_enemy_in_range(self) -> Optional["Character"]:
-        offsets = [(0, -1), (-1, 0), (1, 0), (0, 1)]
         enemy_class: Character.__class__ = Elf if isinstance(self, Goblin) else Goblin
         enemies: List[Character] = []
         for n in self.position.iter_neighbours():

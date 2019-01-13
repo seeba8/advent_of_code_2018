@@ -1,8 +1,48 @@
-from typing import List, Generator, Tuple, Optional, Dict
+from typing import List, Generator, Tuple, Optional, Dict, Union
 from sortedcontainers import SortedListWithKey
-import heapq
 from math import inf
 import sys
+
+
+class Point:
+    def __init__(self, x:Union[Tuple[int, int], int], y: Optional[int]=None):
+        if isinstance(x, int):
+            self.x = x
+            self.y = y
+        else:
+            (self.x, self.y) = x[0], x[1]
+
+    def __eq__(self, other: "Point"):
+        return self.x == other.x and self.y == other.y
+
+    def __cmp__(self, other: "Point"):
+        if self == other:
+            return 0
+        if self.y < other.y:
+            return -1
+        if self.y == other.y and self.x < other.x:
+            return -1
+        return 1
+
+    def __lt__(self, other: "Point"):
+        return self.y < other.y or (self.y == other.y and self.x < other.x)
+
+    def __repr__(self):
+        return "Point ({}, {})".format(self.x, self.y)
+
+    def __iter__(self):
+        yield self.x
+        yield self.y
+
+    def __hash__(self):
+        return self.y * game.cavern.width + self.x
+
+    def offset(self, x=0, y=0):
+        return Point(self.x+x, self.y+y)
+
+    def iter_neighbours(self):
+        for i in [(0, -1), (-1, 0), (1, 0), (0, 1)]:
+            yield self.offset(*i)
 
 
 class Cavern:
@@ -11,17 +51,11 @@ class Cavern:
         self.height = h
         self.entities: List[Entity] = [Air(x, y) for x in range(w) for y in range(h)]
 
-    def reading_order(self, x, y):
-        return y * self.width + x
-
     def set_entity(self, entity: "Entity"):
-        self.entities[entity.position[1] * self.width + entity.position[0]] = entity
+        self.entities[entity.position.y * self.width + entity.position.x] = entity
 
-    def get_entity_at(self, position):
-        return self.entities[position[1] * self.width + position[0]]
-
-    def get_entity_at_offset(self, entity: "Entity", x=0, y=0) -> "Entity":
-        return self.get_entity_at((entity.position[0]+x, entity.position[1]+y))
+    def get_entity_at(self, position: Point) -> "Entity":
+        return self.entities[position.y * self.width + position.x]
 
     def iter_characters(self) -> Generator["Character", None, None]:
         for unit in self.entities:
@@ -34,10 +68,6 @@ class Cavern:
             if isinstance(unit, Air):
                 continue
             yield unit
-
-    @classmethod
-    def calculate_distance(cls, e1: Tuple[int, int], e2: Tuple[int, int]):
-        return abs(e1[0] - e2[0]) + abs(e1[1] - e2[1])
 
     @classmethod
     def create_from_string(cls, maplines: List[str]):
@@ -70,14 +100,14 @@ class Cavern:
 
 class Entity:
     def __init__(self, x, y):
-        self.__position = (x, y)
+        self.__position = Point(x, y)
 
     @property
     def position(self):
         return self.__position
 
     @position.setter
-    def position(self, new_position):
+    def position(self, new_position: Point):
         game.cavern.set_entity(Air(*self.position))
         self.__position = new_position
         game.cavern.set_entity(self)
@@ -94,25 +124,20 @@ class Character(Entity):
         self.hit_points = 200
 
     def __repr__(self):
-        return "{0}: ({1[0]:>2}, {1[1]:>2}) ({2:>3} HP)".format(self, self.position, self.hit_points)
+        return "{0}: ({1}) ({2:>3} HP)".format(self, self.position, self.hit_points)
 
     def die(self):
         print(repr(self), "died!")
-        game.cavern.set_entity(Air(self.position[0], self.position[1]))
+        game.cavern.set_entity(Air(self.position.x, self.position.y))
         game.check_is_game_over()
 
     def iter_free_neighbours(self):
         blocked_spots = [e.position for e in game.cavern.iter_obstacles()]
-        if (self.position[0] - 1, self.position[1]) not in blocked_spots:
-            yield (self.position[0] - 1, self.position[1])
-        if (self.position[0] + 1, self.position[1]) not in blocked_spots:
-            yield (self.position[0] + 1, self.position[1])
-        if (self.position[0], self.position[1] - 1) not in blocked_spots:
-            yield (self.position[0], self.position[1] - 1)
-        if (self.position[0], self.position[1] + 1) not in blocked_spots:
-            yield (self.position[0], self.position[1] + 1)
+        for neighbour in self.position.iter_neighbours():
+            if neighbour not in blocked_spots:
+                yield neighbour
 
-    def find_target(self, distances: Dict[Tuple[int, int], Tuple[Tuple[int, int], int]]):
+    def find_target(self, distances: Dict[Point, Tuple[Point, int]]):
         prime, prime_dist = None, inf
         for potential in game.cavern.iter_characters():
             if potential.__class__ == self.__class__:
@@ -124,31 +149,24 @@ class Character(Entity):
                 if distances[t][1] < prime_dist:
                     prime = t
                     prime_dist = distances[t][1]
-                elif distances[t][1] == prime_dist and (game.cavern.reading_order(*t)
-                                                        < game.cavern.reading_order(*prime)):
+                elif distances[t][1] == prime_dist and (t < prime):
                     prime = t
         return prime
 
     def dijkstra(self):
-        def get_neighbours(coords: Tuple[int, int]):
-            _neighbours = []
-            for delta in [-1, 1]:
-                if (coords[0] - delta, coords[1]) in distances:
-                    _neighbours.append((coords[0] - delta, coords[1]))
-                if (coords[0], coords[1] - delta) in distances:
-                    _neighbours.append((coords[0], coords[1] - delta))
-            return _neighbours
+        def get_neighbours(coords: Point):
+            return [n for n in coords.iter_neighbours() if n in distances]
 
         def initialise_queue():  # -> List[Tuple[int, int]]:
             # returns a list of tuples [priority, coordinates = (x, y)]
             for y in range(game.cavern.height):
                 for x in range(game.cavern.width):
-                    if (x, y) not in blocked_spots or (x, y) == self.position:
-                        if (x, y) == self.position:
-                            distances[(x, y)] = 0
+                    if Point(x, y) not in blocked_spots or Point(x, y) == self.position:
+                        if Point(x, y) == self.position:
+                            distances[Point(x, y)] = 0
                         else:
-                            distances[(x, y)] = inf
-                        not_visited.add((x, y))
+                            distances[Point(x, y)] = inf
+                        not_visited.add(Point(x, y))
 
         def set_as_closer():
             not_visited.remove(neighbour)  # to update the distance, gets re-added a few lines below
@@ -157,12 +175,12 @@ class Character(Entity):
             nodes[neighbour] = (u, alternative)
 
         blocked_spots = [e.position for e in game.cavern.iter_obstacles()]
-        nodes: Dict[Tuple[int, int], Tuple[Tuple[int, int], int]] = {}
-        distances = {}
-        not_visited: SortedListWithKey[Tuple[int, int]] = SortedListWithKey(key=lambda x: -distances[x])
+        nodes: Dict[Point, Tuple[Point, int]] = {}  # what is the predecessor of a point and what is the distance
+        distances: Dict[Point, int] = {}
+        not_visited: SortedListWithKey[Point] = SortedListWithKey(key=lambda x: -distances[x])
         initialise_queue()
         while len(not_visited) > 0:
-            u = not_visited.pop()
+            u: Point = not_visited.pop()
             if distances[u] == inf:
                 continue
             for neighbour in get_neighbours(u):
@@ -170,7 +188,7 @@ class Character(Entity):
                 if alternative < distances[neighbour]:
                     set_as_closer()
                 elif alternative == distances[neighbour]:  # equal
-                    if game.cavern.reading_order(*u) < game.cavern.reading_order(*nodes[neighbour][0]):
+                    if u < nodes[neighbour][0]:
                         set_as_closer()
         return nodes
 
@@ -188,16 +206,17 @@ class Character(Entity):
         self.position = x
         # sys.exit(-1)
 
-    def try_get_enemy_in_range(self) -> Optional[Entity]:
+    def try_get_enemy_in_range(self) -> Optional["Character"]:
         offsets = [(0, -1), (-1, 0), (1, 0), (0, 1)]
-        enemy_class = Elf if isinstance(self, Goblin) else Goblin
+        enemy_class: Character.__class__ = Elf if isinstance(self, Goblin) else Goblin
         enemies: List[Character] = []
-        for offset in offsets:
-            if isinstance(game.cavern.get_entity_at_offset(self, *offset), enemy_class):
-                enemies.append(game.cavern.get_entity_at_offset(self, *offset))
+        for n in self.position.iter_neighbours():
+            if isinstance(game.cavern.get_entity_at(n), enemy_class):
+                enemies.append(game.cavern.get_entity_at(n))
+
         if len(enemies) == 0:
             return None
-        enemies.sort(key=lambda x: game.cavern.reading_order(*x.position))
+        enemies.sort(key=lambda x: x.position)
         best_i, best_hp = 0, enemies[0].hit_points
         for i, enemy in enumerate(enemies):
             if enemy.hit_points < best_hp or (enemy.hit_points == best_hp and i < best_i):

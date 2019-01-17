@@ -1,10 +1,12 @@
 import re
 import sys
+from typing import List, Tuple, Set
 
 
 class CPU:
     def __init__(self):
         self.reg = [0] * 4
+        self.opcodes = [""] * 16
 
     def addr(self, a, b, c):
         self.reg[c] = self.reg[a] + self.reg[b]
@@ -69,14 +71,15 @@ class CPU:
             "gtir": self.gtir,
             "gtri": self.gtri,
             "gtrr": self.gtrr,
-            "eqir": self.eqri,
+            "eqir": self.eqir,
             "eqri": self.eqri,
             "eqrr": self.eqrr,
         }
+        if str(instruction).isnumeric():
+            instruction = self.opcodes[instruction]
         options[instruction](a, b, c)
 
     def possible_instructions(self, before: [], after: [], instruction):
-        print(before, after, instruction)
         options = {
             "addr": self.addr,
             "addi": self.addi,
@@ -123,6 +126,25 @@ def parse_file_part1(path="../input/2018/day16.txt"):
                 after.append([int(x) for x in regex.findall(line)[0]])
 
 
+def parse_file_part2(path="../input/2018/day16.txt"):
+    instruction = []
+    regex_instr = re.compile(r"(\d+) (\d+) (\d+) (\d+)")
+    with open(path, "r") as file:
+        lines = file.readlines()
+        num_empty_lines = 0
+        start_part_two = False
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if line == "":
+                num_empty_lines += 1
+            else:
+                num_empty_lines = 0
+            if num_empty_lines > 2:
+                start_part_two = True
+            if start_part_two and len(line) > 0:
+                instruction.append([int(x) for x in regex_instr.findall(line)[0]])
+    return instruction
+
 def parse_example(str):
     before = []
     after = []
@@ -143,11 +165,32 @@ three_or_more = 0
 cpu = CPU()
 
 before, after, instr = parse_file_part1()
+results: List[Set[str]] = []
+opcodes_rows: List[int] = []
 for i in range(len(before)):
+    opcode = instr[i][0]
     res = cpu.possible_instructions(before[i], after[i], instr[i])
-    print(res)
+    #print(res)
     if len(res) > 2:
         three_or_more += 1
-print(three_or_more)
+    if len(res) == 1:
+        cpu.opcodes[opcode] = res[0]
+    results.append(set(res))
+    opcodes_rows.append(opcode)
+print("Part 1:", three_or_more)
 print()
-
+while any([opc == "" for opc in cpu.opcodes]):
+    for i in range(len(results)):
+        results[i].difference_update(cpu.opcodes)
+        if len(results[i]) == 1:
+            cpu.opcodes[opcodes_rows[i]] = results[i].pop()
+print(cpu.opcodes)
+assert len(set(cpu.opcodes)) == 16
+cpu.reg = [0] * 4
+instructions = parse_file_part2()
+print(instructions)
+for instr in instructions:
+    assert len(instr) == 4
+    assert 0 <= instr[0] < 16
+    cpu.callmethod(*instr)
+print(cpu.reg)

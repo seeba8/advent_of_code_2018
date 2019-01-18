@@ -282,7 +282,7 @@ class Game:
                                                                     self.round_number *
                                                                     sum(c.hit_points for c in
                                                                         self.cavern.iter_characters())))
-            # It's not 220320
+            # It's not 220320, and also not 223074
 
     def check_is_game_over(self):
         has_goblin = has_elf = False

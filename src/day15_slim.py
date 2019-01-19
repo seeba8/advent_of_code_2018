@@ -1,11 +1,12 @@
 # from math import inf, isinf
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 
 WALL = 500
 ELF = 200
 GOBLIN = -200
-ATTACK_POWER = 3
+G_ATTACK_POWER = 3
+E_ATTACK_POWER = 3
 AIR = 0
 INF = 2**16 - 1
 
@@ -18,6 +19,7 @@ class Game:
         self.height = h
         self.is_game_over = False
         self.round_number = 0
+        self.elf_died = False
 
     @staticmethod
     def from_file(path="../input/2018/day15.txt"):
@@ -37,28 +39,31 @@ class Game:
         lives = []
         for i, c in enumerate(self.cavern):
             if i != 0 and i % self.width == 0:
-                s += " "*5 + ", ".join(["G({})".format(x) if x[1] < 0
-                                        else "E({})".format(x) for x in lives])
+                s += " "*5 + ", ".join(["G({})".format(abs(x[1])) if x[1] < 0
+                                        else "E({})".format(x[1]) for x in lives])
                 lives = []
                 s += "\n"
             if c == WALL:
                 s += "#"
             elif c > 0:
                 s += "E"
-                lives.append((i,c))
+                lives.append((i, c))
             elif c < 0:
                 s += "G"
-                lives.append((i,c))
+                lives.append((i, c))
             else:
                 s += "."
         s += "\n"
         return s
 
-    def next_round(self):
+    def next_round(self, elves_must_live=False):
         self.round_number += 1
         for i, c in enumerate(self.cavern):
             if c in (0, WALL):
                 continue
+            if self.elf_died and elves_must_live:
+                print("Elf died :-(")
+                break
             if self.is_game_over:
                 self.round_number -= 1
                 break
@@ -68,15 +73,16 @@ class Game:
                     self.attack(enemy)
                 else:
                     new_i = self.move(i)
-                    if new_i is None:  # did not move, therefore cannot attack now
+                    if new_i is None:  # did not move, therefore nothing there to attack now
                         continue
                     enemy = self.enemy_to_attack(new_i)
                     if enemy is not None:
                         self.attack(enemy)
         if self.is_game_over:
             sum_health = sum(abs(i) for i in self.cavern if i != WALL)
-            print("Game over! Round {}, Sum {},  Outcome {}"
-                  .format(self.round_number,  sum_health, self.round_number * sum_health))
+            print("Game over! Round {}, Sum {},  Outcome {}{}"
+                  .format(self.round_number,  sum_health, self.round_number * sum_health,
+                          ", Elf died :-(" if elves_must_live and self.elf_died else ""))
 
     def _print_distances(self, distances, i):
         s = ""
@@ -199,10 +205,15 @@ class Game:
         return sorted(enemies, key=lambda x: buffer * x[1] + x[0], reverse=False)[0][0]
 
     def attack(self, enemy):
-        self.cavern[enemy] += ATTACK_POWER if self.is_goblin(enemy) else -ATTACK_POWER
-        if abs(self.cavern[enemy]) == 1:  # died
+        attack = (E_ATTACK_POWER if self.is_goblin(enemy) else G_ATTACK_POWER)
+        if abs(self.cavern[enemy]) - attack <= 0:  # died
+            if self.is_elf(enemy):  # was elf:
+                self.elf_died = True
             self.cavern[enemy] = AIR
+            self.last_move[enemy] = 0
             self.check_is_game_over()
+        else:
+            self.cavern[enemy] += E_ATTACK_POWER if self.is_goblin(enemy) else -G_ATTACK_POWER
 
     def check_is_game_over(self):
         has_goblin = has_elf = False
@@ -222,9 +233,59 @@ def restrict(array, min_val, max_val):
     return [x for x in array if min_val <= x < max_val]
 
 
-game = Game.from_file()
-print(game)
-while not game.is_game_over:
-    game.next_round()
-    print(game.round_number, "\n")
-print(game)
+def part1():
+    game = Game.from_file()
+    print(game)
+    while not game.is_game_over:
+        game.next_round()
+        print(game.round_number)
+        # print(game)
+    print(game)
+    print(game.elf_died)
+
+
+def part2():
+    elves_victories: List[Union[bool, None]] = [False] * 4
+    global E_ATTACK_POWER
+    E_ATTACK_POWER = 4
+    while True:
+        print("trying {} attack".format(E_ATTACK_POWER))
+        if len(elves_victories) - 1 < E_ATTACK_POWER:
+            elves_victories.extend([None] * (E_ATTACK_POWER - len(elves_victories) + 1))
+
+        game = Game.from_file()
+        while not game.elf_died and not game.is_game_over:
+            game.next_round(elves_must_live=True)
+
+        if not game.elf_died:
+            elves_victories[E_ATTACK_POWER] = True
+            print("Elf won at {} attack".format(E_ATTACK_POWER))
+            if elves_victories[E_ATTACK_POWER - 1] is not None and not elves_victories[E_ATTACK_POWER - 1]:
+                break
+            max_lose = max(i for i, v in enumerate(elves_victories) if v is not None and not v)
+            E_ATTACK_POWER = round((E_ATTACK_POWER+max_lose)/2)
+        else:
+            elves_victories[E_ATTACK_POWER] = False
+            if any(victory for victory in elves_victories):
+                min_vic = min(i for i, v in enumerate(elves_victories) if v)
+                E_ATTACK_POWER = round((E_ATTACK_POWER+min_vic)/2)
+            else:
+                E_ATTACK_POWER *= 2
+
+
+def part2b():
+    global E_ATTACK_POWER
+    E_ATTACK_POWER = 4
+    while True:
+        game = Game.from_file()
+        while not game.elf_died and not game.is_game_over:
+            game.next_round(elves_must_live=True)
+        if game.elf_died:
+            E_ATTACK_POWER += 1
+        else:
+            break
+
+
+# binary search tree not working according to
+# https://www.reddit.com/r/adventofcode/comments/a6chwa/2018_day_15_solutions/ebtyjs0
+part2b()

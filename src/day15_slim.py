@@ -19,8 +19,8 @@ class Game:
         self.is_game_over = False
         self.round_number = 0
 
-    @classmethod
-    def from_file(cls, path="../input/2018/day15.txt"):
+    @staticmethod
+    def from_file(path="../input/2018/day15.txt"):
         with open(path, "r") as file:
             map_lines = file.readlines()
         _game = Game(len(map_lines[0].strip()), len(map_lines))
@@ -114,10 +114,6 @@ class Game:
 
     def move(self, i):
         predecessors, distances = self.dijkstra(i)
-        if self.round_number == 6 and i == 358:
-            print(self)
-            self._print_distances(distances, i)
-            print("hmm")
         target = self.find_target(i, distances)
         if target is None:
             return
@@ -143,11 +139,36 @@ class Game:
                 if self.cavern[neighbour] != AIR:
                     continue
                 alternative = distances[u] + 1
-                if alternative < distances[neighbour] or (
-                        alternative == distances[neighbour] and u < predecessor[neighbour]):
+                if alternative < distances[neighbour]:
                     distances[neighbour] = alternative
                     predecessor[neighbour] = u
+                elif alternative == distances[neighbour]:
+                    prev_path = Game.get_steps_in_order(i, neighbour, predecessor)
+                    former_predecessor = predecessor[neighbour]
+                    predecessor[neighbour] = u
+                    alternative_path = Game.get_steps_in_order(i, neighbour, predecessor)
+                    if Game.first_step_smaller(prev_path, alternative_path):
+                        # undo setting the new predecessor, back to the old one
+                        predecessor[neighbour] = former_predecessor
         return predecessor, distances
+
+    @staticmethod
+    def first_step_smaller(a, b):
+        assert len(a) == len(b)
+        for i in range(len(a)):
+            if a[i] == b[i]:
+                continue
+            return a[i] < b[i]
+        assert False
+
+    @staticmethod
+    def get_steps_in_order(start: int, end: int, predecessor: List[int]):
+        path = [end]
+        while predecessor[end] != start:
+            end = predecessor[end]
+            path.append(end)
+        path.append(start)
+        return list(reversed(path))
 
     def get_neighbours(self, i):
         return restrict([i - self.width,   # above
@@ -205,5 +226,5 @@ game = Game.from_file()
 print(game)
 while not game.is_game_over:
     game.next_round()
-    #print("\n\n",game.round_number, "\n")
-    #print(game)
+    print(game.round_number, "\n")
+print(game)

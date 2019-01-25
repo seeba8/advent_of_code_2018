@@ -34,8 +34,10 @@ class Arctic:
         return self.ground[x] if x < self.w * self.h else STATES.OUT_OF_BOUNDS
 
     def amount_of_water(self):
-
         return sum(1 for x in self.ground if x in (STATES.STILL_WATER, STATES.FLOWING_WATER))
+
+    def count_still_water(self):
+        return sum(1 for x in self.ground if x == STATES.STILL_WATER)
 
     def fill_row_if_full(self, i):
         min_x = max_x = i
@@ -127,3 +129,4 @@ arctic = Arctic.from_file()
 arctic.flow()
 print(arctic.amount_of_water())
 print(arctic)
+print(arctic.count_still_water())

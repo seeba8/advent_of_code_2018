@@ -4,9 +4,10 @@ from typing import List, Tuple, Set
 
 
 class CPU:
-    def __init__(self):
-        self.reg = [0] * 4
+    def __init__(self, num_registers=4, instruction_register=None):
+        self.reg = [0] * num_registers
         self.opcodes = [""] * 16
+        self.instruction_register = instruction_register
 
     def addr(self, a, b, c):
         self.reg[c] = self.reg[a] + self.reg[b]
@@ -77,7 +78,10 @@ class CPU:
         }
         if str(instruction).isnumeric():
             instruction = self.opcodes[instruction]
+        s = "{}({},{},{}): {}".format(instruction, a, b, c, self.reg)
         options[instruction](a, b, c)
+        s += " => " + str(self.reg)
+        print(s)
 
     def possible_instructions(self, before: [], after: [], instruction):
         options = {
@@ -145,6 +149,7 @@ def parse_file_part2(path="../input/2018/day16.txt"):
                 instruction.append([int(x) for x in regex_instr.findall(line)[0]])
     return instruction
 
+
 def parse_example(str):
     before = []
     after = []
@@ -170,7 +175,6 @@ opcodes_rows: List[int] = []
 for i in range(len(before)):
     opcode = instr[i][0]
     res = cpu.possible_instructions(before[i], after[i], instr[i])
-    #print(res)
     if len(res) > 2:
         three_or_more += 1
     if len(res) == 1:

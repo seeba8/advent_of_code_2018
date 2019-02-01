@@ -1,0 +1,102 @@
+a = 1;
+goto i16 # i0:
+c = 1 # i1:
+e = 1
+# i2:
+d = c * e
+if d == b:
+    a += c
+e += 1
+if e <= b:
+    goto i2
+
+c += 1
+if c <= b:
+    goto i1
+else: BREAK
+#i16:
+b += 2
+b *= 2
+b *= 19
+b *= 11
+d += 7
+d *= 22
+d += 13
+b += d
+if a == 0:
+goto i0; elif a == 1:
+d = 27
+d *= 28
+d += 29
+d *= 30
+d *= 14
+d *= 32
+b += d
+a = 0
+goto i0
+
+
+
+import sys
+
+
+class Assembly:
+    def __init__(self, a=0, b=0, c=0, d=0, e=0):
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+        self.e = e
+        self.i16()
+
+    def __str__(self):
+        return "{}, {}, {}, {}, {}".format(self.a, self.b, self.c, self.d, self.e)
+
+    def i0(self):
+        self.c = 1
+        self.i1()
+
+    def i1(self):
+        self.e = 1
+        self.i2()
+
+    def i2(self):
+        self.d = self.c * self.e
+        if self.d != self.b:
+            self.a += self.c
+        self.e += 1
+        if self.e <= self.b:
+            self.i2()
+        self.c += 1
+        if self.c <= self.b:
+            self.i1()
+        else:
+            sys.exit(0)
+
+    def i16(self):
+        self.b += 2
+        self.b *= 2
+        self.b *= 19
+        self.b *= 11
+        self.d += 7
+        self.d *= 22
+        self.d += 13
+        self.b += self.d
+        if self.a == 0:
+            self.i0()
+        else:
+            self.d = 27
+            self.d *= 28
+            self.d += 29
+            self.d *= 30
+            self.d *= 14
+            self.d *= 32
+            self.b += self.d
+            self.a = 0
+            self.i0()
+
+
+# self.a= self.b= self.c= self.d = self.e = 0
+print("start")
+ass = Assembly()
+print(ass)

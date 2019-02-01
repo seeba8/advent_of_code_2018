@@ -1,0 +1,37 @@
+# a ip b   c d e
+ip += 16
+c = 1
+e = 1
+d = c * e
+d = b == d
+ip += d
+ip += 1
+a += c
+e += 1
+d = e > b
+ip += d
+ip = 2
+c += 1
+d = c > b
+ip += d
+ip = 1
+ip *= ip
+b += 2
+b *= 2
+b *= ip
+b *= 11
+d += 7
+d *= ip
+d += 13
+b += d
+ip += a
+ip = 0
+d = ip
+d *= ip
+d += ip
+d *= ip
+d *= 14
+d *= ip
+b += d
+a = 0
+ip = 0

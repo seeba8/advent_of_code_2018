@@ -1,0 +1,68 @@
+a b c   ip e f
+b = 123
+b = b & 456
+b = b == 72
+ip += b
+ip = 0
+b = 0
+c = b | 65536
+b = 10605201
+f = c & 255
+b += f
+b &= 16777215
+b *= 65899
+b &= 16777215
+f = 256 > c
+ip += f
+ip += 1
+ip = 27
+f = 0
+e = f + 1
+e *= 256
+e = e > c
+ip += e
+ip += 1
+ip = 25
+f += 1
+ip = 17
+c = f
+ip = 7
+f = a == b
+ip += f
+ip = 5
+
+a = b = c = ip = e = f = 0
+start:      b = 123
+            b &= 456
+            if b != 72:
+                goto start
+            else:
+5:              b = 0
+                c = b | 65536
+7:              b = 10605201
+                f = c & 255
+                b = b + f
+                b = b & 16777215
+                b = b * 65899
+                b = b & 16777215
+                f = 256 > c
+                if f:
+                    goto 7
+                else:
+                    f = 0
+                    e = f + 1
+                    e *= 256
+                    e = e > c
+                    if e:
+                        goto 7
+                    else:
+                        f += 1
+                        goto 7
+                    b = f
+                    goto 7
+                    f = a == b
+                    if a: sys.exit(-1)
+                    goto 5
+
+
+
